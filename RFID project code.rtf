@@ -1,0 +1,374 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 #include<reg51.h>  \par
+#include<string.h>  \par
+  \par
+//0000 to 7FFF  \par
+  \par
+sbit RS = P0^7;  \par
+sbit EN = P0^6;  \par
+  \par
+sbit SDA = P1^0;  \par
+sbit SCL = P1^1;  \par
+sbit RELAY = P1^2;  \par
+  \par
+code unsigned char RFID_1[] = "34006C9C04C0"; //34006C9C04+NULL  \par
+code unsigned char RFID_2[] = "34006C549C90";  \par
+code unsigned char RFID_3[] = "1300F8FAC1D0";  \par
+code unsigned char RFID_4[] = "34006CD5AD20";  \par
+code unsigned char RFID_5[] = "420061231E1E";  \par
+  \par
+code unsigned char name_1[] = "SANJAY JAIN";  \par
+code unsigned char name_2[] = "SHEKHAT HARSH";  \par
+code unsigned char name_3[] = "DHOLARIYA RAKSHIT";  \par
+code unsigned char name_4[] = "DIVYANG SINGH ";  \par
+code unsigned char name_5[] = "NAKUL JAIN";  \par
+  \par
+unsigned char rs[15];  \par
+  \par
+unsigned int no_of_records;  \par
+  \par
+void delay()  \par
+\{  \par
+    int j;  \par
+    for(j=0;j<500;j++);  \par
+\}  \par
+  \par
+void long_delay()  \par
+\{  \par
+    unsigned int j;  \par
+    for(j=0;j<65000;j++);  \par
+\}  \par
+  \par
+void idelay()  \par
+\{  \par
+    unsigned int j;  \par
+    for(j=0;j<10000;j++);  \par
+\}  \par
+  \par
+void lcd_command(char lc)  \par
+\{  \par
+    P2 = lc;  \par
+    RS = 0;  \par
+    EN = 1;  \par
+    delay();  \par
+    EN = 0;  \par
+\}  \par
+  \par
+void lcd_data(char ld)  \par
+\{  \par
+    P2 = ld;  \par
+    RS = 1;  \par
+    EN = 1;  \par
+    delay();  \par
+    EN = 0;  \par
+\}  \par
+  \par
+void lcd_init()  \par
+\{  \par
+    lcd_command(0x38);  \par
+    lcd_command(0x0E);  \par
+    lcd_command(0x01);  \par
+\}  \par
+  \par
+void serial_init()  \par
+\{  \par
+     TMOD = 0x20;  \par
+    SCON = 0x50;  \par
+    TH1 = 0xFD;  \par
+    TR1 = 1;  \par
+\}  \par
+  \par
+void transmit(unsigned char tx)  \par
+\{  \par
+    SBUF = tx;  \par
+    while(TI==0);  \par
+    TI = 0;  \par
+\}  \par
+  \par
+void send_string(unsigned char *str)  \par
+\{  \par
+    int j;  \par
+    for(j=0;str[j]!='\\0';j++)  \par
+        transmit(str[j]);     \par
+\}  \par
+  \par
+unsigned char receive()  \par
+\{  \par
+    char rx;  \par
+    while(RI==0);  \par
+    RI = 0;  \par
+    rx = SBUF;  \par
+    return(rx);  \par
+\}  \par
+  \par
+void lcd_string(char add,char *str)  \par
+\{  \par
+    int j;  \par
+    lcd_command(add);  \par
+    for(j=0;str[j]!='\\0';j++)  \par
+        lcd_data(str[j]);     \par
+\}  \par
+  \par
+void start()  \par
+\{  \par
+    SDA = 1;  \par
+    SCL = 1;  \par
+    SDA = 0;  \par
+\}  \par
+  \par
+void stop()  \par
+\{  \par
+    SDA = 0;  \par
+    SCL = 1;  \par
+    SDA = 1;  \par
+\}  \par
+  \par
+void write(unsigned char w)  \par
+\{  \par
+    int j;  \par
+    SCL = 0;  \par
+    for(j=0;j<8;j++)  \par
+    \{  \par
+        if((w & 0x80)==0)  \par
+            SDA = 0;  \par
+        else  \par
+            SDA = 1;  \par
+        SCL = 1;  \par
+        SCL = 0;  \par
+        ww = w << 1;  \par
+    \}  \par
+    SCL = 1;  \par
+    SCL = 0;  \par
+\}  \par
+  \par
+unsigned char read()  \par
+\{  \par
+    int j;  \par
+    unsigned char r = 0x00;  \par
+    SDA = 1;  \par
+  \par
+    for(j=0;j<8;j++)  \par
+    \{  \par
+        SCL = 1;  \par
+        rr = r << 1;  \par
+        if(SDA == 1)  \par
+            rr = r | 0x01;  \par
+        SCL = 0;  \par
+    \}  \par
+    return(r);  \par
+\}  \par
+  \par
+void ack()  \par
+\{  \par
+    SDA = 0;  \par
+    SCL = 1;  \par
+    SCL = 0;  \par
+\}  \par
+  \par
+void nack()  \par
+\{  \par
+    SDA = 1;  \par
+    SCL = 1;  \par
+    SCL = 0;  \par
+\}  \par
+  \par
+void rtc_read()  \par
+\{  \par
+        unsigned char ss,mm,hh,day,mn,date,yr;  \par
+        start();  \par
+        write(0xD0);  \par
+        write(0x00);          \par
+        stop();  \par
+        start();  \par
+        write(0xD1);  \par
+        ss = read();  \par
+        ack();  \par
+        mm = read();  \par
+        ack();  \par
+        hh = read();  \par
+        ack();  \par
+        day = read();  \par
+        ack();  \par
+        date = read();  \par
+        ack();  \par
+        mn = read();  \par
+        ack();  \par
+        yr = read();  \par
+        nack();  \par
+        stop();  \par
+  \par
+        rs[0] = hh/0x10 + 48;  \par
+        rs[1] = hh%0x10 + 48;  \par
+        rs[2] = ':';  \par
+        rs[3] = mm/0x10 + 48;  \par
+        rs[4] = mm%0x10 + 48;  \par
+        rs[5] = ',';  \par
+        rs[6] = date/0x10 + 48;  \par
+        rs[7] = date%0x10 + 48;  \par
+        rs[8] = '/';  \par
+        rs[9] = mn/0x10 + 48;  \par
+        rs[10] = mn%0x10 + 48;  \par
+        rs[11] = '/';  \par
+        rs[12] = yr/0x10 + 48;  \par
+        rs[13] = yr%0x10 + 48;  \par
+        rs[14] = '\\0';  \par
+\}  \par
+  \par
+void rtc_init()  \par
+\{  \par
+    start();  \par
+    write(0xD0);  \par
+    write(0x00);  \par
+    write(0x00);  \par
+    write(0x00);  \par
+    write(0x13);  \par
+    write(0x05);  \par
+    write(0x12);  \par
+    write(0x04);  \par
+    write(0x12);  \par
+    stop();  \par
+  \par
+\}  \par
+  \par
+void write_records(unsigned char *str);  \par
+void read_records();  \par
+  \par
+void main()  \par
+\{  \par
+    unsigned char rec_data[13],i,t;  \par
+  \par
+    RELAY = 0;  \par
+  \par
+    lcd_init();  \par
+    serial_init();  \par
+    rtc_init();  \par
+    idelay();  \par
+    start();  \par
+    write(0xA0);  \par
+    write(0x7F);  \par
+    write(0xFF);  \par
+    stop();  \par
+    start();  \par
+    write(0xA1);  \par
+    no_of_records = read();  \par
+    nack();  \par
+    stop();  \par
+  \par
+//  no_of_records = 0;  \par
+  \par
+    while(1)  \par
+    \{  \par
+    start:  \par
+        lcd_command(0x01);  \par
+        lcd_string(0x80,"RFID ATTENDANCE");  \par
+        lcd_string(0xC5,"SYSTEM");  \par
+  \par
+        j = 0;  \par
+        while(1)  \par
+        \{  \par
+            if(RI==1)  \par
+            \{  \par
+                RI = 0;  \par
+                t = receive();  \par
+                if(t == '+')  \par
+                \{  \par
+                    read_records();  \par
+                    goto start;  \par
+                \}  \par
+                else  \par
+                \{  \par
+                    rec_data[j] = t;  \par
+                    for(j=1;j<12;j++)  \par
+                        rec_data[j] = receive();  \par
+                    rec_data[j] = '\\0';   \par
+                    break;  \par
+                \}  \par
+            \}  \par
+        \}  \par
+  \par
+        j = strcmp(RFID_1,rec_data);    //match => j = 0  \par
+  \par
+        lcd_command(0x01);  \par
+  \par
+        if(j==0)  \par
+        \{  \par
+            RELAY = 1;  \par
+            lcd_string(0x80,name_1);  \par
+            rtc_read();  \par
+            lcd_string(0xC0,rs);  \par
+            long_delay();  \par
+            write_records(name_1);  \par
+            RELAY = 0;  \par
+            goto start;       \par
+        \}  \par
+  \par
+//  \par
+        j = strcmp(RFID_2,rec_data);    //match => j = 0  \par
+  \par
+        if(j==0)  \par
+        \{  \par
+            RELAY = 1;  \par
+            lcd_string(0x80,name_2);  \par
+            rtc_read();  \par
+            lcd_string(0xC0,rs);  \par
+            long_delay();  \par
+            write_records(name_2);  \par
+            RELAY = 0;  \par
+            goto start;       \par
+        \}  \par
+  \par
+//  \par
+        j = strcmp(RFID_3,rec_data);    //match => j = 0  \par
+  \par
+        if(j==0)  \par
+        \{  \par
+            RELAY = 1;  \par
+            lcd_string(0x80,name_3);  \par
+            rtc_read();  \par
+            lcd_string(0xC0,rs);  \par
+            long_delay();  \par
+            write_records(name_3);  \par
+            RELAY = 0;  \par
+            goto start;       \par
+        \}  \par
+  \par
+        j = strcmp(RFID_4,rec_data);    //match => j = 0  \par
+  \par
+        if(j==0)  \par
+ \{  \par
+            RELAY = 1;  \par
+            lcd_string(0x80,name_4);  \par
+            rtc_read();  \par
+            lcd_string(0xC0,rs);  \par
+            long_delay();  \par
+            write_records(name_4);  \par
+            RELAY = 0;  \par
+            goto start;       \par
+        \}  \par
+  \par
+        j = strcmp(RFID_5,rec_data);    //match => j = 0  \par
+  \par
+        if(j==0)  \par
+        \{  \par
+            RELAY = 1;  \par
+            lcd_string(0x80,name_5);  \par
+            no_of_records = 0;  \par
+            start();  \par
+            write(0xA0);  \par
+            write(0x7F);  \par
+            write(0xFF);  \par
+            write(0x00);  \par
+            stop();  \par
+            lcd_string(0xC0,"MEMORY CLEARED");  \par
+            long_delay();  \par
+            RELAY = 0;  \par
+            goto start;       \par
+        \}  \par
+        lcd_string(0x80,"ERROR");  \par
+        lcd_string(0xC0,rec_data);  \par
+        long_delay();  \par
+    \}  \par
+\}  \par
+}
+ 
